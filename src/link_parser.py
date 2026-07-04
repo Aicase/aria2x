@@ -23,6 +23,7 @@ class LinkType(Enum):
     THUNDER = "thunder"
     TORRENT = "torrent"
     METALINK = "metalink"
+    CURL = "curl"
     UNKNOWN = "unknown"
 
 
@@ -88,13 +89,58 @@ def parse_link(text: str) -> ParsedLink:
 
 
 def parse_links(text: str) -> list[ParsedLink]:
-    lines = text.strip().splitlines()
+    """从混合文本中提取所有下载链接，支持 curl 命令"""
     results = []
-    for line in lines:
+    text = text.strip()
+    if not text:
+        return results
+
+    # 1. 检测 curl 命令：提取 -o 文件名、-A/-H header、URL
+    curl_urls = re.findall(r'curl\s+.*?["\']?(https?://[^\s"\']+)["\']?', text)
+    for u in curl_urls:
+        # 提取 -o 文件名的前一行
+        out_match = re.search(r'-o\s+["\']([^"\']+)["\']', text)
+        fn = out_match.group(1) if out_match else ""
+        # 提取 User-Agent
+        ua_match = re.search(r'-A\s+["\']([^"\']+)["\']', text)
+        ua = ua_match.group(1) if ua_match else ""
+        curl_text = text  # 保存原始文本用于重建 curl 命令
+        results.append(ParsedLink(
+            raw=f"curl {u}", type=LinkType.CURL, url=u,
+            filename=fn or _extract_fn_from_url(u),
+            is_valid=True,
+        ))
+    if curl_urls:
+        return results
+
+    # 2. 提取所有 HTTP/FTP 链接（含 query string）
+    raw_urls = re.findall(r'(https?://[^\s\'"]+)', text)
+    if raw_urls:
+        for u in raw_urls:
+            results.append(_parse_http(u, urlparse(u)))
+        return results
+
+    # 3. 按行解析（原有逻辑）
+    for line in text.splitlines():
         line = line.strip()
         if line and not line.startswith("#"):
-            results.append(parse_link(line))
+            # 跳过 curl 前缀词
+            if line.startswith("curl "):
+                continue
+            results.append(parse_link(line.strip()))
+
     return results
+
+
+def _extract_fn_from_url(url: str) -> str:
+    """从 URL 提取文件名，兼容 query string"""
+    from urllib.parse import urlparse, unquote
+    parsed = urlparse(url)
+    path = unquote(parsed.path)
+    fn = path.rstrip("/").split("/")[-1] if path else ""
+    if not fn or "." not in fn:
+        fn = "download"
+    return fn
 
 
 def _parse_http(url: str, parsed) -> ParsedLink:

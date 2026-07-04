@@ -126,8 +126,8 @@ def create_app():
                 return jsonify({"error": str(e)}), 500
         parsed = parse_link(url)
 
-        # BT/Magnet/ED2K/Metalink → aria2c 引擎
-        if parsed.type in (LinkType.MAGNET, LinkType.MAGNET_HASH, LinkType.ED2K, LinkType.METALINK):
+        # BT/Magnet/ED2K/Metalink/CURL → aria2c 引擎
+        if parsed.type in (LinkType.MAGNET, LinkType.MAGNET_HASH, LinkType.ED2K, LinkType.METALINK, LinkType.CURL):
             if not is_aria2_available():
                 return jsonify({"error": "BT/Magnet/ED2K 需要 aria2c.exe，请放到 assets/ 目录"}), 400
             if not aria2.is_running:
@@ -495,6 +495,37 @@ def create_app():
         cmd += " --continue=true --max-connection-per-server=16 --split=16"
 
         return jsonify({"command": cmd})
+
+    # ---- 原生文件选择器（服务端打开对话框） ----
+    @app.route("/api/pick_file", methods=["POST"])
+    def api_pick_file():
+        """打开原生文件选择对话框，返回选中路径"""
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            path = filedialog.askopenfilename(title="选择文件")
+            root.destroy()
+            return jsonify({"path": path or ""})
+        except Exception as e:
+            return jsonify({"path": "", "error": str(e)})
+
+    @app.route("/api/pick_folder", methods=["POST"])
+    def api_pick_folder():
+        """打开原生文件夹选择对话框"""
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            path = filedialog.askdirectory(title="选择目录")
+            root.destroy()
+            return jsonify({"path": path or ""})
+        except Exception as e:
+            return jsonify({"path": "", "error": str(e)})
 
     return app, engine
 

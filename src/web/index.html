@@ -316,7 +316,7 @@ function apply(){
   document.getElementById('set-proxy-port').value=cfg.proxy?.port||7890;
 }
 function setTh(n,sv=true){document.documentElement.setAttribute('data-theme',n);document.querySelectorAll('.th').forEach(c=>c.classList.toggle('on',c.dataset.t===n));cfg.theme=n;if(sv&&!_applying)save()}
-async function pickDir(){if(window.pywebview&&window.pywebview.api&&window.pywebview.api.pick_folder){try{const v=await window.pywebview.api.pick_folder(cfg.save_dir||'');if(v){document.getElementById('set-dir').value=v;cfg.save_dir=v;save();toast('目录已更新','ok')}}catch(e){toast('选择失败','err')}}else{const v=prompt('下载目录:',cfg.save_dir||'');if(v){document.getElementById('set-dir').value=v;cfg.save_dir=v;save()}}}
+async function pickDir(){try{const r=await fetch(API+'/api/pick_folder',{method:'POST'});const d=await r.json();if(d.path){document.getElementById('set-dir').value=d.path;cfg.save_dir=d.path;save();toast('目录已更新','ok')}}catch(e){toast('选择失败','err')}}
 function rng(n){const v=document.getElementById('set-'+n).value;document.getElementById('v-'+n).textContent=v;if(n==='threads')cfg.threads=parseInt(v);else if(n==='concurrent')cfg.max_concurrent=parseInt(v);else if(n==='speed')cfg.speed_limit=parseInt(v);if(!_applying)save()}
 function rng2(n){const el=document.getElementById('set-'+n);const v=el.value;document.getElementById('v-'+n).textContent=v;if(n==='seed-time')cfg.seed_time=parseInt(v);else if(n==='seed-ratio')cfg.seed_ratio=parseFloat(v);if(!_applying)save()}
 function saveModes(){cfg.modes={http:document.getElementById('m-http').checked,magnet:document.getElementById('m-magnet').checked,ed2k:document.getElementById('m-ed2k').checked,thunder:document.getElementById('m-thunder').checked};save()}
@@ -410,9 +410,9 @@ async function parseMiaochuan(){
 // 做种
 let _seedFilePath='';
 async function pickSeedFile(){
-  if(window.pywebview&&window.pywebview.api&&window.pywebview.api.pick_file){
-    try{const p=await window.pywebview.api.pick_file();if(p){_seedFilePath=p;document.getElementById('seed-file-hint').textContent=p;document.getElementById('seed-trackers-row').style.display='';document.getElementById('seed-actions-row').style.display='';}}catch(e){toast('选择失败','err')}
-  }else{const p=prompt('输入文件路径:');if(p){_seedFilePath=p;document.getElementById('seed-file-hint').textContent=p;document.getElementById('seed-trackers-row').style.display=''}}
+  try{const r=await fetch(API+'/api/pick_file',{method:'POST'});const d=await r.json();
+  if(d.path){_seedFilePath=d.path;document.getElementById('seed-file-hint').textContent=d.path;document.getElementById('seed-trackers-row').style.display='';document.getElementById('seed-actions-row').style.display=''}
+  }catch(e){toast('选择失败','err')}
 }
 async function createTorrent(){
   if(!_seedFilePath)return toast('请先选择文件','err');

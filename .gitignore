@@ -27,3 +27,5 @@ Thumbs.db
 # Logs
 *.log
 temp/
+*.lz4
+*.aria2
