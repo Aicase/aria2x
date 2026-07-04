@@ -108,6 +108,22 @@ def create_app():
         settings = get_settings()
 
         if not url: return jsonify({"error": "链接为空"}), 400
+
+        # 支持自定义 headers
+        headers = data.get("headers", {})
+        if headers:
+            # 将带自定义 header 的请求转入 aria2c
+            if not is_aria2_available():
+                return jsonify({"error": "自定义 Header 下载需要 aria2c.exe"}), 400
+            if not aria2.is_running:
+                aria2.start()
+            opts = {"dir": save_dir, "header": [f"{k}: {v}" for k, v in headers.items()]}
+            if filename: opts["out"] = filename
+            try:
+                gid = aria2.add_uri(url, opts)
+                return jsonify({"task_id": gid, "engine": "aria2", "status": "added"})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
         parsed = parse_link(url)
 
         # BT/Magnet/ED2K/Metalink → aria2c 引擎
@@ -422,6 +438,63 @@ def create_app():
         for tr in trackers:
             magnet += f"&tr={tr}"
         return jsonify({"magnet": magnet})
+
+    # ---- aria2c 命令行下载 ----
+    @app.route("/api/aria2/command", methods=["POST"])
+    def api_aria2_command():
+        """直接执行 aria2c 命令行（支持自定义 header、cookie 等）"""
+        command = request.get_json().get("command", "").strip()
+        if not command:
+            return jsonify({"error": "请输入 aria2c 命令"}), 400
+
+        if not is_aria2_available():
+            return jsonify({"error": "aria2c 不可用"}), 400
+
+        # 替换命令中的 'aria2c' 为实际路径
+        import shlex
+        try:
+            parts = shlex.split(command)
+        except:
+            parts = command.split()
+
+        if not parts:
+            return jsonify({"error": "命令为空"}), 400
+
+        # 找到并替换 aria2c 路径
+        exe = get_aria2_path()
+        parts[0] = exe
+        parts.append("--enable-rpc=false")  # 确保不冲突
+
+        try:
+            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            proc = subprocess.Popen(
+                parts,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=flags,
+            )
+            return jsonify({"status": "started", "pid": proc.pid, "command": " ".join(parts)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/aria2/command/copy", methods=["GET"])
+    def api_aria2_copy_command():
+        """生成可复制的 aria2c 命令（含路径）"""
+        url = request.args.get("url", "")
+        filename = request.args.get("filename", "download")
+        headers = request.args.get("headers", "")
+        exe = get_aria2_path() or "aria2c"
+
+        cmd = f'{exe} "{url}" --out "{filename}"'
+        if headers:
+            for h in headers.split(";"):
+                h = h.strip()
+                if h:
+                    cmd += f' --header "{h}"'
+
+        cmd += " --continue=true --max-connection-per-server=16 --split=16"
+
+        return jsonify({"command": cmd})
 
     return app, engine
 

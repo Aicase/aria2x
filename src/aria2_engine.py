@@ -81,6 +81,7 @@ class Aria2Engine:
             f"--rpc-listen-port={self.RPC_PORT}",
             "--rpc-allow-origin-all=true",
             "--rpc-listen-all=false",
+            f"--rpc-secret={self.RPC_SECRET}",   # 修复：RPC 密钥
             f"--dir={dl_dir}",
             "--continue=true",
             "--max-concurrent-downloads=5",
