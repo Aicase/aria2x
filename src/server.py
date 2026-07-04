@@ -339,10 +339,13 @@ def create_app():
 
     @app.route("/api/motrix/download", methods=["POST"])
     def api_motrix_download():
-        """应用内下载 Motrix Next 安装程序"""
+        """用我们自己的下载引擎下载 Motrix Next"""
         m = MotrixIntegration()
-        ok = m.download_installer()
-        return jsonify({"started": ok, "installed": m.is_installed})
+        url = m.download_url
+        save_dir = get_settings().get("save_dir", str(Path.home() / "Downloads"))
+        tid = engine.add_task(url=url, save_dir=save_dir, filename="MotrixNext_Setup.exe", threads=8)
+        return jsonify({"task_id": tid, "engine": "python", "status": "added",
+                        "filename": "MotrixNext_Setup.exe", "hint": "下载完成后双击安装"})
 
     # ---- 引擎管理 ----
     _engine_mgr = EngineManager()
@@ -442,38 +445,69 @@ def create_app():
     # ---- aria2c 命令行下载 ----
     @app.route("/api/aria2/command", methods=["POST"])
     def api_aria2_command():
-        """直接执行 aria2c 命令行（支持自定义 header、cookie 等）"""
+        """解析 aria2c 命令 → 加入下载列表显示进度"""
         command = request.get_json().get("command", "").strip()
         if not command:
             return jsonify({"error": "请输入 aria2c 命令"}), 400
 
-        if not is_aria2_available():
-            return jsonify({"error": "aria2c 不可用"}), 400
-
-        # 替换命令中的 'aria2c' 为实际路径
+        # 解析命令：提取 URL、-o 文件名、--header、--out 等
         import shlex
         try:
             parts = shlex.split(command)
         except:
             parts = command.split()
 
-        if not parts:
-            return jsonify({"error": "命令为空"}), 400
+        url = ""
+        filename = ""
+        headers = []
+        save_dir = get_settings().get("save_dir", str(Path.home() / "Downloads"))
 
-        # 找到并替换 aria2c 路径
-        exe = get_aria2_path()
-        parts[0] = exe
-        parts.append("--enable-rpc=false")  # 确保不冲突
+        i = 0
+        while i < len(parts):
+            p = parts[i]
+            if p.startswith("http://") or p.startswith("https://"):
+                url = p.strip('"').strip("'")
+            elif p.startswith("magnet:") or p.startswith("ed2k://"):
+                url = p
+            elif p in ("-o", "--out") and i + 1 < len(parts):
+                filename = parts[i + 1].strip('"').strip("'")
+                i += 1
+            elif p in ("-d", "--dir") and i + 1 < len(parts):
+                save_dir = parts[i + 1].strip('"').strip("'")
+                i += 1
+            elif p in ("-A", "--user-agent", "-H", "--header") and i + 1 < len(parts):
+                headers.append(parts[i + 1].strip('"').strip("'"))
+                i += 1
+            i += 1
+
+        if not url:
+            return jsonify({"error": "未找到下载链接"}), 400
+
+        # 如果命令行没有指定 -o，从 URL 提取文件名
+        if not filename:
+            from urllib.parse import urlparse, unquote
+            path = urlparse(url).path
+            fn = unquote(path).rstrip("/").split("/")[-1] if path else ""
+            filename = fn if fn and "." in fn else "download"
+
+        # HTTP → 用 aria2c 引擎（支持自定义 header）
+        if not is_aria2_available():
+            return jsonify({"error": "aria2c 不可用"}), 400
+        if not aria2.is_running:
+            aria2.start()
+
+        opts = {"dir": save_dir}
+        if filename:
+            opts["out"] = filename
+        if headers:
+            opts["header"] = headers
 
         try:
-            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-            proc = subprocess.Popen(
-                parts,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=flags,
-            )
-            return jsonify({"status": "started", "pid": proc.pid, "command": " ".join(parts)})
+            gid = aria2.add_uri(url, opts)
+            return jsonify({
+                "task_id": gid, "engine": "aria2", "status": "added",
+                "filename": filename, "url": url[:80],
+            })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 

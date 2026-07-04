@@ -337,7 +337,14 @@ async function batchAction(a){await fetch(API+'/api/tasks/batch',{method:'POST',
 async function runAria2Cmd(){
   const cmd=document.getElementById('aria2-cmd').value.trim();if(!cmd)return toast('请输入命令','err');
   try{const r=await fetch(API+'/api/aria2/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd})});const d=await r.json();
-  document.getElementById('cmd-result').innerHTML=d.error?`<span style="color:var(--danger)">${esc(d.error)}</span>`:`<span style="color:var(--ok)">✓ 已启动 (PID: ${d.pid})</span>`}catch(e){toast('执行失败','err')}
+  if(d.error){document.getElementById('cmd-result').innerHTML=`<span style="color:var(--danger)">${esc(d.error)}</span>`;return}
+  document.getElementById('cmd-result').innerHTML=`<span style="color:var(--ok)">✓ 已添加到下载列表：${esc(d.filename)}</span>`;
+  // 自动切到下载页显示进度
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+  document.querySelector('.tab[data-p="download"]').classList.add('active');
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.getElementById('p-download').classList.add('active');
+  refresh();toast('已添加: '+esc(d.filename),'ok')}catch(e){toast('执行失败','err')}
 }
 async function copyAria2Cmd(){
   const url=prompt('输入下载链接:');if(!url)return;
@@ -385,7 +392,7 @@ async function loadMotrix(){
   }catch(e){document.getElementById('motrix-body').innerHTML='<div style="padding:20px;color:var(--danger)">加载失败</div>'}
 }
 async function launchMotrix(){try{await fetch(API+'/api/motrix/launch',{method:'POST'});toast('已启动 Motrix Next','ok')}catch(e){toast('启动失败','err')}}
-async function downloadMotrix(){try{await fetch(API+'/api/motrix/download',{method:'POST'});toast('正在下载 Motrix Next 安装程序...','ok')}catch(e){toast('失败','err')}}
+async function downloadMotrix(){try{const r=await fetch(API+'/api/motrix/download',{method:'POST'});const d=await r.json();if(d.task_id){toast('已添加到下载列表: '+d.filename,'ok');go('download',document.querySelector('.tab[data-p="download"]'));refresh()}else{toast('添加失败','err')}}catch(e){toast('失败','err')}}
 
 // Engine list
 async function loadEngines(){
