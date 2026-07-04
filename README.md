@@ -4,7 +4,7 @@
 <h1 align="center">Aria2X Downloader</h1>
 <p align="center">
   <strong>轻量级全能桌面下载器</strong><br>
-  纯 Python 多线程引擎 · 原生窗口 · 双引擎(内置aria2c) · P2P做种
+  Flask 后台 + Chrome/Edge App 模式窗口 · 双引擎(内置aria2c) · P2P做种
 </p>
 
 <p align="center">
@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/engine-aria2c%2BPython-orange" alt="Engine">
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" alt="License">
   <img src="https://img.shields.io/badge/release-v1.0.0-brightgreen" alt="Release">
+  <img src="https://img.shields.io/badge/size-13MB-blue" alt="Size">
 </p>
 
 ---
@@ -37,7 +38,7 @@
 
 ### 桌面体验
 
-- **原生窗口** — pywebview + WebView2，非浏览器
+- **Chrome App 模式窗口** — 利用 Chrome/Edge App 模式，无地址栏无标签栏，类原生体验，零崩溃风险
 - **低对比度简约 UI** — 4 套主题 (Slate/Graphite/Paper/Moss)
 - **系统托盘** — 最小化到托盘后台运行
 - **系统通知** — 下载完成 Windows 通知
