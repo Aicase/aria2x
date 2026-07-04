@@ -364,6 +364,24 @@ def create_app():
         ok = _engine_mgr.download_with(key, url, save_dir, filename)
         return jsonify({"started": ok})
 
+    @app.route("/api/engines/custom", methods=["POST"])
+    def api_engine_custom_path():
+        """手动指定引擎路径并重新检测"""
+        data = request.get_json()
+        key = data.get("key", "")
+        path = data.get("path", "")
+        if not key or not path:
+            return jsonify({"error": "需要 key 和 path"}), 400
+        # 保存到设置
+        s = get_settings()
+        custom = s.get("custom_engines", {})
+        custom[key] = path
+        s["custom_engines"] = custom
+        save_settings(s)
+        # 重新检测
+        _engine_mgr._detect_all()
+        return jsonify(_engine_mgr.to_api_response())
+
     # ---- 秒传 JSON ----
     @app.route("/api/miaochuan/parse", methods=["POST"])
     def api_miaochuan_parse():

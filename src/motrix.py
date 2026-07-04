@@ -74,42 +74,81 @@ class MotrixIntegration:
 
     @staticmethod
     def _find_exe():
-        """查找 Motrix Next 主程序"""
-        candidates = []
+        """查找 Motrix Next 主程序 — 注册表优先"""
+        # 1. Windows 注册表（最可靠）
+        try:
+            import winreg
+            for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                for sub in (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                           r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"):
+                    try:
+                        key = winreg.OpenKey(root, sub)
+                        for i in range(winreg.QueryInfoKey(key)[0]):
+                            try:
+                                name = winreg.EnumKey(key, i)
+                                app_key = winreg.OpenKey(key, name)
+                                try:
+                                    display, _ = winreg.QueryValueEx(app_key, "DisplayName")
+                                    if "motrix" in display.lower():
+                                        loc, _ = winreg.QueryValueEx(app_key, "InstallLocation")
+                                        if loc:
+                                            candidates = [
+                                                Path(loc) / "Motrix Next.exe",
+                                                Path(loc) / "MotrixNext.exe",
+                                            ]
+                                            for c in candidates:
+                                                if c.exists():
+                                                    return str(c)
+                                            # 搜索目录下所有 exe
+                                            for f in Path(loc).rglob("Motrix*.exe"):
+                                                return str(f)
+                                except: pass
+                                finally: winreg.CloseKey(app_key)
+                            except: pass
+                    except: pass
+        except: pass
+
+        # 2. 常见安装路径
         local = os.environ.get("LOCALAPPDATA", "")
+        candidates = []
         if local:
             candidates.append(Path(local) / "Programs" / "motrix-next" / "Motrix Next.exe")
         candidates.extend([
             Path("C:/Program Files/Motrix Next/Motrix Next.exe"),
             Path("C:/Program Files (x86)/Motrix Next/Motrix Next.exe"),
+            Path("D:/Program Files/Motrix Next/Motrix Next.exe"),
+            Path("D:/Downloads/MotrixNext/Motrix Next.exe"),  # 用户实际路径
         ])
         for c in candidates:
             if c.exists():
                 return str(c)
-        found = shutil.which("Motrix Next")
-        return found
+
+        # 3. PATH 搜索
+        return shutil.which("Motrix Next")
 
     @staticmethod
     def _find_engine():
         """查找 Motrix Next 内置的 aria2-next 引擎"""
-        local = os.environ.get("LOCALAPPDATA", "")
-        search_dirs = []
-        if local:
-            base = Path(local) / "Programs" / "motrix-next"
-            if base.exists():
-                search_dirs.append(base)
-        for root in ["C:/Program Files/Motrix Next", "C:/Program Files (x86)/Motrix Next"]:
+        # 从已找到的安装目录搜索
+        exe_path = MotrixIntegration._find_exe()
+        if exe_path:
+            base = Path(exe_path).parent
+            for p in base.rglob("aria2*.exe"):
+                try:
+                    if p.stat().st_size > 500_000:
+                        return str(p)
+                except: pass
+
+        # 扩展搜索
+        for root in ["C:/Program Files/Motrix Next", "C:/Program Files (x86)/Motrix Next",
+                     "D:/Program Files/Motrix Next", "D:/Downloads/MotrixNext"]:
             b = Path(root)
             if b.exists():
-                search_dirs.append(b)
-
-        for d in search_dirs:
-            for p in d.rglob("aria2*.exe"):
-                try:
-                    if p.stat().st_size > 1_000_000:
-                        return str(p)
-                except:
-                    pass
+                for p in b.rglob("aria2*.exe"):
+                    try:
+                        if p.stat().st_size > 500_000:
+                            return str(p)
+                    except: pass
         return None
 
     def launch(self) -> bool:

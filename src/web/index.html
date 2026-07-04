@@ -397,12 +397,17 @@ async function downloadMotrix(){try{const r=await fetch(API+'/api/motrix/downloa
 // Engine list
 async function loadEngines(){
   try{const r=await fetch(API+'/api/engines');const d=await r.json();const body=document.getElementById('engines-body');
-  body.innerHTML=d.engines.map(e=>`<div class="set-row"><div><div class="set-lbl">${e.installed?'🟢':'⚫'} ${e.name}</div><div class="set-sub">${e.installed?(e.version||'已安装 · 优先级:'+e.priority):'未检测到'} · ${e.supports.join(', ')}</div></div>${e.installed&&e.key==='idm'?`<button class="btn btn-primary btn-sm" onclick="dlWithEngine('idm','IDM')">IDM 下载</button>`:''}${e.installed&&e.key==='bitcomet'?`<button class="btn btn-sm" onclick="dlWithEngine('bitcomet','彗星')">彗星下载</button>`:''}${e.installed&&e.key==='curl'?`<button class="btn btn-sm" onclick="dlWithEngine('curl','cURL')">cURL 下载</button>`:''}</div>`).join('');
+  body.innerHTML=d.engines.map(e=>`<div class="set-row"><div><div class="set-lbl">${e.installed?'🟢':'⚫'} ${e.name}</div><div class="set-sub">${e.installed?(e.version||'已安装 · 优先级:'+e.priority):'未检测到'} · ${e.supports.join(', ')}</div></div>${e.installed&&e.key==='idm'?`<button class="btn btn-primary btn-sm" onclick="dlWithEngine('idm','IDM')">IDM 下载</button>`:!e.installed&&(e.key==='idm'||e.key==='motrix')?`<button class="btn btn-sm" onclick="setCustomPath('${e.key}')">手动指定路径</button>`:''}${e.installed&&e.key==='bitcomet'?`<button class="btn btn-sm" onclick="dlWithEngine('bitcomet','彗星')">彗星下载</button>`:''}${e.installed&&e.key==='curl'?`<button class="btn btn-sm" onclick="dlWithEngine('curl','cURL')">cURL 下载</button>`:''}</div>`).join('');
   }catch(e){}
 }
 async function dlWithEngine(engine,name){
   const url=prompt(`输入下载链接 (${name || engine}):`,'https://');if(!url)return;
   try{await fetch(API+'/api/engines/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engine,url,save_dir:cfg.save_dir||''})});toast('已提交到 '+engine,'ok')}catch(e){toast('失败','err')}
+}
+async function setCustomPath(key){
+  const p=prompt(`输入 ${key==='idm'?'IDM (IDMan.exe)':'Motrix Next (Motrix Next.exe)'} 的完整路径:`);
+  if(!p)return;
+  try{await fetch(API+'/api/engines/custom',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,path:p})});loadEngines();toast('已更新，正在重新检测','ok')}catch(e){toast('失败','err')}
 }
 
 // 秒传 JSON

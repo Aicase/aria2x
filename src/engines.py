@@ -88,34 +88,42 @@ class EngineManager:
         ))
 
     def _detect_idm(self):
-        """Internet Download Manager"""
-        candidates = [
-            Path("C:/Program Files (x86)/Internet Download Manager/IDMan.exe"),
-            Path("C:/Program Files/Internet Download Manager/IDMan.exe"),
-        ]
-        exe = None
-        for c in candidates:
-            if c.exists():
-                exe = str(c)
-                break
+        """Internet Download Manager — 注册表 + 多路径 + 自定义"""
+        exe = self._find_exe_by_registry("Internet Download Manager", ["IDMan.exe"])
+        if not exe:
+            # 自定义路径
+            exe = self._get_custom_path("idm")
+        if not exe:
+            candidates = [
+                Path("C:/Program Files (x86)/Internet Download Manager/IDMan.exe"),
+                Path("C:/Program Files/Internet Download Manager/IDMan.exe"),
+                Path("D:/Program Files/Internet Download Manager/IDMan.exe"),
+                Path("D:/Program Files (x86)/Internet Download Manager/IDMan.exe"),
+            ]
+            for c in candidates:
+                if c.exists():
+                    exe = str(c)
+                    break
         self._engines.append(EngineInfo(
-            key="idm", name="Internet Download Manager", version="",
+            key="idm", name="IDM", version="",
             exe_path=exe or "", installed=bool(exe),
             supports=["http", "https", "ftp"],
             priority=25,
         ))
 
     def _detect_bitcomet(self):
-        """BitComet (彗星)"""
-        candidates = [
-            Path("C:/Program Files/BitComet/BitComet.exe"),
-            Path("C:/Program Files (x86)/BitComet/BitComet.exe"),
-        ]
-        exe = None
-        for c in candidates:
-            if c.exists():
-                exe = str(c)
-                break
+        """BitComet (彗星) — 注册表 + 多路径"""
+        exe = self._find_exe_by_registry("BitComet", ["BitComet.exe"])
+        if not exe:
+            candidates = [
+                Path("C:/Program Files/BitComet/BitComet.exe"),
+                Path("C:/Program Files (x86)/BitComet/BitComet.exe"),
+                Path("D:/Program Files/BitComet/BitComet.exe"),
+            ]
+            for c in candidates:
+                if c.exists():
+                    exe = str(c)
+                    break
         self._engines.append(EngineInfo(
             key="bitcomet", name="BitComet 彗星", version="",
             exe_path=exe or "", installed=bool(exe),
@@ -126,12 +134,72 @@ class EngineManager:
     def _detect_motrix(self):
         from src.motrix import MotrixIntegration
         m = MotrixIntegration()
+        installed = m.is_installed
+        # 如果标准检测失败，试用自定义路径
+        if not installed:
+            custom = self._get_custom_path("motrix")
+            if custom:
+                installed = True
+                m._exe = custom  # 注入路径
         self._engines.append(EngineInfo(
-            key="motrix", name="Motrix Next", version=m.version if m.is_installed else "",
-            exe_path=m.exe_path, installed=m.is_installed,
+            key="motrix", name="Motrix Next", version=m.version if installed else "",
+            exe_path=m.exe_path if installed else custom if not installed else "",
+            installed=installed,
             supports=["http", "https", "magnet", "torrent", "ed2k", "thunder"],
             priority=22,
         ))
+
+    @staticmethod
+    def _find_exe_by_registry(app_name_part, exe_names):
+        """通过 Windows 注册表卸载信息查找已安装应用的可执行文件"""
+        try:
+            import winreg
+            for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                for sub in (r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                           r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"):
+                    try:
+                        key = winreg.OpenKey(root, sub)
+                        count = winreg.QueryInfoKey(key)[0]
+                        for i in range(count):
+                            try:
+                                name = winreg.EnumKey(key, i)
+                                app_key = winreg.OpenKey(key, name)
+                                try:
+                                    display, _ = winreg.QueryValueEx(app_key, "DisplayName")
+                                    if app_name_part.lower() in display.lower():
+                                        # 找到安装目录
+                                        try:
+                                            loc, _ = winreg.QueryValueEx(app_key, "InstallLocation")
+                                            for en in exe_names:
+                                                p = Path(loc) / en
+                                                if p.exists(): return str(p)
+                                            # 搜索目录下所有匹配 exe
+                                            for f in Path(loc).rglob("*.exe"):
+                                                if any(en.lower() in f.name.lower() for en in exe_names):
+                                                    return str(f)
+                                        except: pass
+                                except: pass
+                                finally: winreg.CloseKey(app_key)
+                            except: pass
+                    except: pass
+        except: pass
+        return None
+
+    @staticmethod
+    def _get_custom_path(key):
+        """从设置文件中读取用户手动指定的引擎路径"""
+        try:
+            import json
+            sf = Path.home() / ".aria2x_settings.json"
+            if sf.exists():
+                with open(sf, "r", encoding="utf-8") as f:
+                    s = json.load(f)
+                custom = s.get("custom_engines", {})
+                p = custom.get(key, "")
+                if p and Path(p).exists():
+                    return p
+        except: pass
+        return None
 
     def _find_exe(self, name, local_paths):
         exe_name = name + (".exe" if sys.platform == "win32" else "")
