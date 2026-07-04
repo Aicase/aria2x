@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="slate">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aria2X</title>
+<style>
+:root,[data-theme="slate"]{--bg:#1a1d23;--surface:#22262e;--card:#272c35;--hover:#2d333d;--line:#333942;--line2:#3a4150;--accent:#7b9acc;--accent-soft:rgba(123,154,204,.12);--text:#c8cdd6;--text2:#8b919c;--text3:#5f6571;--ok:#8ab87a;--warn:#c9a86a;--danger:#c97a7a;--input:#1e222a;--radius:6px}
+[data-theme="graphite"]{--bg:#1c1c1e;--surface:#242426;--card:#2a2a2d;--hover:#303033;--line:#36363a;--line2:#404044;--accent:#a0a0b8;--accent-soft:rgba(160,160,184,.1);--text:#ccc;--text2:#888;--text3:#555;--ok:#7aaa6a;--warn:#b89050;--danger:#bb6b6b;--input:#1e1e20}
+[data-theme="paper"]{--bg:#ebe9e4;--surface:#f3f1ec;--card:#fff;--hover:#f5f3ee;--line:#d8d4cc;--line2:#ccc8be;--accent:#5b7da0;--accent-soft:rgba(91,125,160,.06);--text:#3a3a3a;--text2:#807d76;--text3:#aaa5a0;--ok:#6a9a5b;--warn:#a88440;--danger:#a85b5b;--input:#e5e2db}
+[data-theme="moss"]{--bg:#1a201d;--surface:#222a26;--card:#28322d;--hover:#2e3933;--line:#333d37;--line2:#3a4540;--accent:#7aa88a;--accent-soft:rgba(122,168,138,.1);--text:#c4ccc8;--text2:#8a948e;--text3:#5a655f;--ok:#7ab87a;--warn:#c9a86a;--danger:#c97a7a;--input:#1e2521}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;font-size:13px;-webkit-font-smoothing:antialiased}
+.topbar{display:flex;align-items:center;height:48px;background:var(--surface);border-bottom:1px solid var(--line);padding:0 16px}
+.brand{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;margin-right:24px}
+.brand .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.tabs{display:flex;gap:1px}
+.tab{padding:6px 14px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;border:none;background:transparent;border-radius:var(--radius);transition:all .15s;font-family:inherit}
+.tab:hover{color:var(--text);background:var(--hover)}
+.tab.active{color:var(--text);background:var(--card)}
+.flex{flex:1}
+.stat{font-size:11px;color:var(--text3);margin-left:18px;text-align:right}
+.stat .v{font-size:13px;font-weight:600;color:var(--text2);font-variant-numeric:tabular-nums}
+.stat .v.act{color:var(--accent)}
+.tray-btn{margin-left:12px;padding:6px 10px;border:1px solid var(--line2);border-radius:var(--radius);cursor:pointer;background:var(--card);color:var(--text2);font-size:12px;transition:all .15s}
+.tray-btn:hover{color:var(--accent);border-color:var(--accent)}
+.page{display:none;padding:20px;max-width:960px;margin:0 auto}
+.page.active{display:block}
+.input-area{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:14px;transition:border-color .15s}
+.input-area.dragover{border-color:var(--accent);background:var(--accent-soft)}
+.input-area textarea{width:100%;min-height:56px;background:transparent;border:none;padding:12px 14px;color:var(--text);font-size:13px;font-family:inherit;resize:vertical;outline:none}
+.input-area textarea::placeholder{color:var(--text3)}
+.input-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-top:1px solid var(--line);background:var(--bg)}
+.input-bar .hint{font-size:11px;color:var(--text3)}
+.ia{display:flex;gap:6px}
+.btn{padding:6px 14px;border:1px solid var(--line2);border-radius:var(--radius);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:inherit;background:var(--card);color:var(--text)}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.btn-primary:hover{filter:brightness(1.1);color:var(--bg)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-icon{width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center}
+.btn-ghost{border-color:transparent;background:transparent}
+.btn-ghost:hover{background:var(--hover);border-color:transparent}
+.parse-list{margin-top:6px}
+.parse-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--radius);margin-bottom:3px;font-size:12px}
+.parse-item:hover{background:var(--hover)}
+.parse-item .pf{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.parse-item .pt{font-size:10px;color:var(--text3);text-transform:uppercase}
+.section-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.task{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 14px;margin-bottom:5px;transition:all .15s}
+.task:hover{border-color:var(--line2)}
+.task.done{opacity:.5}
+.task-top{display:flex;align-items:center;gap:10px}
+.task-fname{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-status{font-size:10px;color:var(--text3);padding:2px 8px;border-radius:4px;background:var(--bg)}
+.task-status.dl{color:var(--accent);background:var(--accent-soft)}
+.task-status.ok{color:var(--ok)} .task-status.err{color:var(--danger)}
+.task-spd{font-size:13px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;min-width:72px;text-align:right}
+.task-pct{font-size:12px;color:var(--text2);min-width:32px;text-align:right}
+.task-acts{display:flex;gap:2px}
+.task-bar{height:2px;background:var(--line);border-radius:1px;margin-top:8px;overflow:hidden}
+.task-fill{height:100%;background:var(--accent);border-radius:1px;transition:width .4s}
+.task-meta{font-size:10px;color:var(--text3);margin-top:5px;display:flex;gap:14px}
+.task-meta .eng{color:var(--text2)}
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty .em{font-size:32px;margin-bottom:8px;opacity:.3;font-weight:200}
+.set-card{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:10px}
+.set-head{padding:12px 16px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line)}
+.set-body{padding:4px 16px}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)}
+.set-row:last-child{border-bottom:none}
+.set-lbl{font-size:12px} .set-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.set-ctrl{display:flex;align-items:center;gap:8px}
+.set-ctrl input[type=text]{background:var(--input);border:1px solid var(--line);border-radius:var(--radius);padding:5px 10px;color:var(--text);font-size:12px;outline:none;width:220px;text-align:right;font-family:inherit}
+.set-ctrl input[type=text]:focus{border-color:var(--accent)}
+.set-ctrl input[type=range]{-webkit-appearance:none;width:130px;height:3px;background:var(--line2);border-radius:2px;outline:none}
+.set-ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--surface)}
+.rval{font-size:12px;font-weight:600;color:var(--accent);min-width:20px;text-align:center}
+.sw{position:relative;width:36px;height:20px} .sw input{opacity:0;width:0;height:0}
+.sw .sl{position:absolute;cursor:pointer;inset:0;background:var(--line2);border-radius:20px;transition:.2s}
+.sw .sl:before{content:"";position:absolute;height:14px;width:14px;left:3px;bottom:3px;background:var(--text3);border-radius:50%;transition:.2s}
+.sw input:checked+.sl{background:var(--accent)} .sw input:checked+.sl:before{transform:translateX(16px);background:var(--bg)}
+.themes{display:flex;gap:8px;padding:10px 0}
+.th{width:60px;height:42px;border-radius:var(--radius);cursor:pointer;border:2px solid transparent;transition:all .15s;position:relative}
+.th:hover{transform:scale(1.03)} .th.on{border-color:var(--accent)}
+.th .tn{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:9px;padding:1px;color:#fff;background:rgba(0,0,0,.4);font-weight:500}
+.th.slate{background:linear-gradient(135deg,#1a1d23,#272c35)}
+.th.graphite{background:linear-gradient(135deg,#1c1c1e,#2a2a2d)}
+.th.paper{background:linear-gradient(135deg,#ebe9e4,#fff)}
+.th.moss{background:linear-gradient(135deg,#1a201d,#28322d)}
+.about{text-align:center;padding:24px 16px}
+.about .ver{font-size:16px;font-weight:600} .about .sub{font-size:11px;color:var(--text3);margin-top:4px}
+.about .info{font-size:11px;color:var(--text2);margin-top:12px;line-height:1.8}
+.hist-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius);margin-bottom:3px;font-size:12px}
+.hist-item:hover{background:var(--hover)}
+.hist-item .hf{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-item .hs{font-size:10px;padding:1px 6px;border-radius:3px}
+.hist-item .hs.ok{color:var(--ok);background:rgba(138,184,122,.1)} .hist-item .hs.err{color:var(--danger);background:rgba(201,122,122,.1)}
+.clipboard-popup{position:fixed;top:60px;right:20px;background:var(--card);border:1px solid var(--accent);border-radius:8px;padding:14px 18px;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:999;max-width:400px;animation:slideIn .3s}
+@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1}}
+.clipboard-popup .ct{font-size:12px;color:var(--text3);margin-bottom:6px}
+.clipboard-popup .cl{font-size:13px;font-weight:500;margin-bottom:10px;word-break:break-all}
+.toast{position:fixed;top:12px;right:12px;z-index:9999;background:var(--card);border:1px solid var(--line2);border-radius:var(--radius);padding:8px 16px;font-size:12px;opacity:0;transform:translateY(-8px);transition:all .2s}
+.toast.show{opacity:1;transform:translateY(0)} .toast.ok{border-color:var(--ok)} .toast.err{border-color:var(--danger)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><div class="dot"></div>Aria2X</div>
+  <div class="tabs">
+    <button class="tab active" data-p="download" onclick="go('download',this)">下载</button>
+    <button class="tab" data-p="history" onclick="go('history',this)">历史</button>
+    <button class="tab" data-p="seed" onclick="go('seed',this)">做种</button>
+    <button class="tab" data-p="motrix" onclick="go('motrix',this)">引擎</button>
+    <button class="tab" data-p="settings" onclick="go('settings',this)">设置</button>
+  </div>
+  <div class="flex"></div>
+  <div class="stat"><div class="v" id="s-spd">0 KB/s</div>速度</div>
+  <div class="stat"><div class="v" id="s-act">0</div>进行中</div>
+  <div class="stat"><div class="v" id="s-done">0</div>已完成</div>
+  <button class="tray-btn" onclick="toTray()">— 最小化</button>
+</div>
+
+<!-- Download Page -->
+<div class="page active" id="p-download">
+  <div class="input-area" id="drop-zone">
+    <textarea id="link-input" placeholder="粘贴链接或拖拽 .torrent 文件到此
+支持 HTTP · Magnet(含Hash自动补全) · ED2K · Thunder · Metalink"></textarea>
+    <div class="input-bar">
+      <span class="hint" id="engine-hint">引擎: 检查中...</span>
+      <div class="ia">
+        <button class="btn btn-ghost btn-sm" onclick="clr()">清空</button>
+        <button class="btn btn-primary btn-sm" onclick="parse()">解析链接</button>
+      </div>
+    </div>
+  </div>
+  <div class="parse-list" id="parse-list"></div>
+  <div style="margin-top:16px">
+    <div class="section-label">
+      <span>下载列表</span>
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-ghost btn-sm" onclick="batchAction('pause_all')">全部暂停</button>
+        <button class="btn btn-ghost btn-sm" onclick="batchAction('resume_all')">全部恢复</button>
+        <button class="btn btn-ghost btn-sm" onclick="batchAction('clear_completed')">清除已完成</button>
+      </div>
+    </div>
+    <div id="task-list"><div class="empty"><div class="em">—</div>暂无任务</div></div>
+  </div>
+</div>
+
+<!-- History Page -->
+<div class="page" id="p-history">
+  <div class="section-label">
+    <span>下载历史</span>
+    <button class="btn btn-ghost btn-sm" onclick="clearHistory()">清空历史</button>
+  </div>
+  <div id="hist-list"><div class="empty"><div class="em">—</div>暂无历史记录</div></div>
+</div>
+
+<!-- Seed Page -->
+<div class="page" id="p-seed">
+  <div class="set-card">
+    <div class="set-head">创建种子 & 生成磁力链接</div>
+    <div class="set-body">
+      <div style="padding:16px 0">
+        <div style="margin-bottom:10px;font-size:12px;color:var(--text2)">选择一个文件，创建 .torrent 种子并生成磁力链接供他人下载</div>
+        <div class="set-row">
+          <div><div class="set-lbl">选择文件</div><div class="set-sub" id="seed-file-hint">未选择</div></div>
+          <button class="btn btn-primary btn-sm" onclick="pickSeedFile()">选择文件</button>
+        </div>
+        <div class="set-row" id="seed-actions-row" style="display:none">
+          <div></div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" onclick="createTorrent()">创建种子 & 生成磁力</button>
+            <button class="btn btn-ghost btn-sm" onclick="pickSeedFile()">重新选择</button>
+          </div>
+        </div>
+          <div><div class="set-lbl">Tracker 地址</div><div class="set-sub">每行一个</div></div>
+          <div style="flex:1;margin-left:10px">
+            <textarea id="seed-trackers" placeholder="udp://tracker.opentrackr.org:1337/announce" style="width:100%;height:60px;background:var(--input);border:1px solid var(--line);border-radius:6px;padding:8px;color:var(--text);font-size:11px;font-family:monospace;resize:vertical;outline:none"></textarea>
+          </div>
+        </div>
+        <div id="seed-result" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="set-card" style="margin-top:12px">
+    <div class="set-head">正在做种的任务</div>
+    <div class="set-body" id="seeding-list">
+      <div style="padding:16px;text-align:center;color:var(--text3)">暂无做种任务</div>
+    </div>
+  </div>
+</div>
+
+<!-- Engines Page -->
+<div class="page" id="p-motrix">
+  <div class="set-card" id="motrix-card">
+    <div class="set-head">Motrix Next</div>
+    <div class="set-body" id="motrix-body"><div style="padding:20px;text-align:center;color:var(--text3)">检测中...</div></div>
+  </div>
+  <div class="set-card" style="margin-top:12px">
+    <div class="set-head">已检测到的下载引擎</div>
+    <div class="set-body" id="engines-body"><div style="padding:20px;text-align:center;color:var(--text3)">加载中...</div></div>
+  </div>
+  <div class="set-card" style="margin-top:12px">
+    <div class="set-head">秒传 JSON 测试</div>
+    <div class="set-body">
+      <div style="padding:8px 0"><textarea id="mc-input" placeholder="粘贴秒传 JSON..." style="width:100%;min-height:80px;background:var(--input);border:1px solid var(--line);border-radius:6px;padding:10px;color:var(--text);font-size:12px;font-family:monospace;resize:vertical;outline:none"></textarea></div>
+      <button class="btn btn-primary btn-sm" onclick="parseMiaochuan()">解析秒传 JSON</button>
+      <div id="mc-result" style="margin-top:10px;font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Page -->
+<div class="page" id="p-settings">
+  <div class="set-card">
+    <div class="set-head">常规</div>
+    <div class="set-body">
+      <div class="set-row"><div><div class="set-lbl">下载目录</div><div class="set-sub">文件保存位置</div></div><div class="set-ctrl"><input type="text" id="set-dir" readonly onclick="pickDir()" style="cursor:pointer"><button class="btn btn-sm" onclick="pickDir()">选择</button></div></div>
+      <div class="set-row"><div><div class="set-lbl">分片线程</div><div class="set-sub">单任务并发连接数</div></div><div class="set-ctrl"><input type="range" min="1" max="16" value="4" id="set-threads" oninput="rng('threads')"><span class="rval" id="v-threads">4</span></div></div>
+      <div class="set-row"><div><div class="set-lbl">做种时间(分钟)</div><div class="set-sub">BT下载完成后继续做种，0=不做种</div></div><div class="set-ctrl"><input type="range" min="0" max="1440" step="10" value="0" id="set-seed-time" oninput="rng2('seed-time')"><span class="rval" id="v-seed-time">0</span></div></div>
+      <div class="set-row"><div><div class="set-lbl">做种比率</div><div class="set-sub">上传/下载比达到后停止做种</div></div><div class="set-ctrl"><input type="range" min="0" max="5" step="0.1" value="1.0" id="set-seed-ratio" oninput="rng2('seed-ratio')"><span class="rval" id="v-seed-ratio">1.0</span></div></div>
+      <div class="set-row"><div><div class="set-lbl">最大并发任务</div><div class="set-sub">同时下载任务数</div></div><div class="set-ctrl"><input type="range" min="1" max="10" value="5" id="set-concurrent" oninput="rng('concurrent')"><span class="rval" id="v-concurrent">5</span></div></div>
+      <div class="set-row"><div><div class="set-lbl">速度限制</div><div class="set-sub">0 = 不限制 (KB/s)</div></div><div class="set-ctrl"><input type="range" min="0" max="10240" step="100" value="0" id="set-speed" oninput="rng('speed')"><span class="rval" id="v-speed">0</span></div></div>
+    </div>
+  </div>
+  <div class="set-card">
+    <div class="set-head">协议</div>
+    <div class="set-body">
+      <div class="set-row"><div><div class="set-lbl">HTTP / HTTPS</div><div class="set-sub">直链下载</div></div><label class="sw"><input type="checkbox" id="m-http" checked onchange="saveModes()"><span class="sl"></span></label></div>
+      <div class="set-row"><div><div class="set-lbl">Magnet 磁力链接</div><div class="set-sub">通过 aria2c 引擎</div></div><label class="sw"><input type="checkbox" id="m-magnet" onchange="saveModes()"><span class="sl"></span></label></div>
+      <div class="set-row"><div><div class="set-lbl">ED2K</div><div class="set-sub">通过 aria2c 引擎</div></div><label class="sw"><input type="checkbox" id="m-ed2k" onchange="saveModes()"><span class="sl"></span></label></div>
+      <div class="set-row"><div><div class="set-lbl">Thunder 迅雷</div><div class="set-sub">自动解码为直链</div></div><label class="sw"><input type="checkbox" id="m-thunder" onchange="saveModes()"><span class="sl"></span></label></div>
+    </div>
+  </div>
+  <div class="set-card">
+    <div class="set-head">行为</div>
+    <div class="set-body">
+      <div class="set-row"><div><div class="set-lbl">剪贴板监听</div><div class="set-sub">自动检测复制的下载链接</div></div><label class="sw"><input type="checkbox" id="set-clip" onchange="saveChk('clipboard_watch',this)"><span class="sl"></span></label></div>
+      <div class="set-row"><div><div class="set-lbl">下载完成通知</div><div class="set-sub">系统通知提醒</div></div><label class="sw"><input type="checkbox" id="set-notify" checked onchange="saveChk('notify_complete',this)"><span class="sl"></span></label></div>
+      <div class="set-row"><div><div class="set-lbl">最小化到托盘</div><div class="set-sub">关闭窗口时隐藏到系统托盘</div></div><label class="sw"><input type="checkbox" id="set-tray" checked onchange="saveChk('minimize_to_tray',this)"><span class="sl"></span></label></div>
+    </div>
+  </div>
+  <div class="set-card">
+    <div class="set-head">代理</div>
+    <div class="set-body">
+      <div class="set-row"><div><div class="set-lbl">启用代理</div><div class="set-sub">通过代理服务器下载</div></div><label class="sw"><input type="checkbox" id="set-proxy-en" onchange="saveProxy()"><span class="sl"></span></label></div>
+      <div class="set-row"><div><div class="set-lbl">代理地址</div></div><div class="set-ctrl"><input type="text" id="set-proxy-host" placeholder="127.0.0.1" style="width:140px"><input type="text" id="set-proxy-port" placeholder="7890" style="width:60px"></div></div>
+    </div>
+  </div>
+  <div class="set-card">
+    <div class="set-head">外观</div>
+    <div class="set-body"><div class="themes"><div class="th slate on" data-t="slate" onclick="setTh('slate')"><div class="tn">Slate</div></div><div class="th graphite" data-t="graphite" onclick="setTh('graphite')"><div class="tn">Graphite</div></div><div class="th paper" data-t="paper" onclick="setTh('paper')"><div class="tn">Paper</div></div><div class="th moss" data-t="moss" onclick="setTh('moss')"><div class="tn">Moss</div></div></div></div>
+  </div>
+  <div class="set-card"><div class="set-head">关于</div><div class="about"><div class="ver">Aria2X</div><div class="sub">v1.0.0</div><div class="info">纯 Python + aria2c 双引擎 · pywebview 原生窗口<br>HTTP / HTTPS / FTP / Magnet / ED2K / Thunder</div></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API='';
+let cfg={save_dir:'',threads:4,max_concurrent:5,theme:'slate',speed_limit:0,modes:{http:true,magnet:true,ed2k:true,thunder:true},proxy:{enabled:false,host:'127.0.0.1',port:7890},clipboard_watch:true,notify_complete:true,minimize_to_tray:true};
+window.__aria2x_settings=cfg;
+window.__aria2x_clipboard=function(link){showClipboardPopup(link)};
+// 剪贴板轮询 — 通过后端 API 检查，不用 tkinter 线程
+async function pollClipboard(){
+  if(!cfg.clipboard_watch)return;
+  try{
+    const r=await fetch(API+'/api/clipboard');const d=await r.json();
+    if(d.is_link&&d.url){showClipboardPopup(d.url)}
+  }catch(e){}
+}
+setInterval(pollClipboard,5000);
+
+function go(p,el){document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));document.getElementById('p-'+p).classList.add('active');el.classList.add('active');if(p==='history')loadHistory();if(p==='motrix'){loadMotrix();loadEngines()}if(p==='seed')loadSeeding()}
+
+async function init(){
+  try{const r=await fetch(API+'/api/settings');if(r.ok){cfg=await r.json();window.__aria2x_settings=cfg;}}catch(e){}
+  _applying=true;apply();_applying=false;
+  setInterval(refresh,3000);refresh();checkEngine();loadMotrix();
+}
+let _applying=false;
+function apply(){
+  document.getElementById('set-dir').value=cfg.save_dir||'';
+  document.getElementById('set-threads').value=cfg.threads||4;
+  document.getElementById('set-concurrent').value=cfg.max_concurrent||5;
+  document.getElementById('set-speed').value=cfg.speed_limit||0;
+  rng('threads');rng('concurrent');rng('speed');setTh(cfg.theme||'slate',false);
+  document.getElementById('set-seed-time').value=cfg.seed_time||0;
+  document.getElementById('set-seed-ratio').value=cfg.seed_ratio||1.0;
+  rng2('seed-time');rng2('seed-ratio');
+  document.getElementById('m-http').checked=cfg.modes?.http!==false;
+  document.getElementById('m-magnet').checked=cfg.modes?.magnet!==false;
+  document.getElementById('m-ed2k').checked=cfg.modes?.ed2k!==false;
+  document.getElementById('m-thunder').checked=cfg.modes?.thunder!==false;
+  document.getElementById('set-clip').checked=cfg.clipboard_watch!==false;
+  document.getElementById('set-notify').checked=cfg.notify_complete!==false;
+  document.getElementById('set-tray').checked=cfg.minimize_to_tray!==false;
+  document.getElementById('set-proxy-en').checked=cfg.proxy?.enabled||false;
+  document.getElementById('set-proxy-host').value=cfg.proxy?.host||'127.0.0.1';
+  document.getElementById('set-proxy-port').value=cfg.proxy?.port||7890;
+}
+function setTh(n,sv=true){document.documentElement.setAttribute('data-theme',n);document.querySelectorAll('.th').forEach(c=>c.classList.toggle('on',c.dataset.t===n));cfg.theme=n;if(sv&&!_applying)save()}
+async function pickDir(){if(window.pywebview&&window.pywebview.api&&window.pywebview.api.pick_folder){try{const v=await window.pywebview.api.pick_folder(cfg.save_dir||'');if(v){document.getElementById('set-dir').value=v;cfg.save_dir=v;save();toast('目录已更新','ok')}}catch(e){toast('选择失败','err')}}else{const v=prompt('下载目录:',cfg.save_dir||'');if(v){document.getElementById('set-dir').value=v;cfg.save_dir=v;save()}}}
+function rng(n){const v=document.getElementById('set-'+n).value;document.getElementById('v-'+n).textContent=v;if(n==='threads')cfg.threads=parseInt(v);else if(n==='concurrent')cfg.max_concurrent=parseInt(v);else if(n==='speed')cfg.speed_limit=parseInt(v);if(!_applying)save()}
+function rng2(n){const el=document.getElementById('set-'+n);const v=el.value;document.getElementById('v-'+n).textContent=v;if(n==='seed-time')cfg.seed_time=parseInt(v);else if(n==='seed-ratio')cfg.seed_ratio=parseFloat(v);if(!_applying)save()}
+function saveModes(){cfg.modes={http:document.getElementById('m-http').checked,magnet:document.getElementById('m-magnet').checked,ed2k:document.getElementById('m-ed2k').checked,thunder:document.getElementById('m-thunder').checked};save()}
+function saveChk(k,el){cfg[k]=el.checked;save()}
+function saveProxy(){cfg.proxy={enabled:document.getElementById('set-proxy-en').checked,host:document.getElementById('set-proxy-host').value,port:parseInt(document.getElementById('set-proxy-port').value)||7890};save()}
+let _saveTimer=null;
+async function save(){if(_applying)return;clearTimeout(_saveTimer);_saveTimer=setTimeout(async()=>{try{await fetch(API+'/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});window.__aria2x_settings=cfg}catch(e){}},500)}
+
+async function checkEngine(){try{const r=await fetch(API+'/api/stats');const s=await r.json();const hint=document.getElementById('engine-hint');if(s.aria2_available){hint.textContent='引擎: aria2c ✓ (HTTP+BT)';if(!s.aria2_running){await fetch(API+'/api/engine/aria2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start'})})}}else{hint.textContent='引擎: Python (仅HTTP, BT需aria2c.exe)'}}catch(e){}}
+
+async function parse(){const t=document.getElementById('link-input').value.trim();if(!t)return;try{const r=await fetch(API+'/api/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const d=await r.json();showP(d.links)}catch(e){toast('解析失败','err')}}
+function showP(ls){const c=document.getElementById('parse-list');if(!ls.length){c.innerHTML='';return}c.innerHTML=ls.map(l=>`<div class="parse-item"><span class="pf">${esc(l.filename||l.raw.substring(0,60))}</span><span class="pt">${l.type}</span>${l.is_valid?`<button class="btn btn-primary btn-sm" onclick="dl('${escA(l.url||l.raw)}','${escA(l.filename)}')">下载</button>`:`<span style="font-size:10px;color:var(--danger)">${esc(l.error||'不支持')}</span>`}</div>`).join('');const v=ls.filter(l=>l.is_valid);if(v.length>1)c.innerHTML+=`<div style="text-align:right;margin-top:4px"><button class="btn btn-sm" onclick="dlAll(${JSON.stringify(v.map(l=>({u:l.url||l.raw,f:l.filename})))})">全部下载 (${v.length})</button></div>`}
+async function dl(u,f){try{const r=await fetch(API+'/api/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:u,filename:f,save_dir:cfg.save_dir,threads:cfg.threads})});const d=await r.json();if(d.error)return toast(d.error,'err');toast('已添加','ok');refresh()}catch(e){toast('失败','err')}}
+async function dlAll(ls){for(const l of ls)await dl(l.u,l.f)}
+async function batchAction(a){await fetch(API+'/api/tasks/batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:a})});refresh()}
+
+async function refresh(){try{const[a,b]=await Promise.all([fetch(API+'/api/stats'),fetch(API+'/api/tasks')]);const s=await a.json(),t=await b.json();upd(s,t.tasks||[])}catch(e){}}
+function upd(s,ts){
+  document.getElementById('s-act').textContent=s.active||0;
+  document.getElementById('s-done').textContent=s.completed||0;
+  document.getElementById('s-act').className='v'+(s.active?' act':'');
+  const kb=(s.speed||0)/1024;document.getElementById('s-spd').textContent=kb>1024?(kb/1024).toFixed(1)+' MB/s':kb.toFixed(0)+' KB/s';
+  const l=document.getElementById('task-list');if(!ts.length){l.innerHTML='<div class="empty"><div class="em">—</div>暂无任务</div>';return}
+  const sc={downloading:'dl',paused:'',pending:'',completed:'ok',failed:'err',cancelled:'',waiting:'',used:''};
+  const sn={downloading:'下载中',paused:'暂停',pending:'等待',completed:'完成',failed:'失败',cancelled:'取消',waiting:'等待',used:'已完成'};
+  l.innerHTML=ts.map(t=>{const p=t.progress_pct||0;const kb=(t.speed||0)/1024;const sp=kb>1024?(kb/1024).toFixed(1)+' MB/s':kb.toFixed(0)+' KB/s';const eng=t.engine==='aria2'?'aria2':'python';return`<div class="task ${t.status==='completed'?'done':''}"><div class="task-top"><div class="task-fname">${esc(t.filename||t.id)}</div><span class="task-status ${sc[t.status]||''}">${sn[t.status]||t.status}</span>${t.status==='downloading'?`<div class="task-spd">${sp}</div>`:''}<div class="task-pct">${p}%</div><div class="task-acts">${t.status==='downloading'?`<button class="btn btn-ghost btn-icon" onclick="pa('${t.id}')">⏸</button>`:''}${t.status==='paused'||t.status==='waiting'?`<button class="btn btn-ghost btn-icon" onclick="re('${t.id}')">▶</button>`:''}${t.status==='failed'?`<button class="btn btn-ghost btn-icon" onclick="re('${t.id}')">↻</button>`:''}<button class="btn btn-ghost btn-icon" onclick="openFolder('${escA(t.save_path||cfg.save_dir||'')}')" title="打开目录">📂</button><button class="btn btn-ghost btn-icon" onclick="rm('${t.id}')" style="color:var(--danger)">✕</button></div></div><div class="task-bar"><div class="task-fill" style="width:${p}%"></div></div><div class="task-meta"><span>${fmt(t.downloaded)} / ${fmt(t.total_size)}</span><span class="eng">${eng}</span>${t.error?`<span style="color:var(--danger)">${esc(t.error.substring(0,40))}</span>`:''}</div></div>`}).join('');
+}
+async function pa(id){await fetch(API+'/api/tasks/'+id+'/pause',{method:'POST'});refresh()}
+async function re(id){await fetch(API+'/api/tasks/'+id+'/resume',{method:'POST'});refresh()}
+async function rm(id){await fetch(API+'/api/tasks/'+id,{method:'DELETE'});refresh()}
+
+async function openFolder(path){if(window.pywebview&&window.pywebview.api&&window.pywebview.api.open_folder){window.pywebview.api.open_folder(path||cfg.save_dir||'')}else{window.open('file:///'+(path||cfg.save_dir))}}
+
+async function loadHistory(){try{const r=await fetch(API+'/api/history');const d=await r.json();const l=document.getElementById('hist-list');const h=d.history||[];if(!h.length){l.innerHTML='<div class="empty"><div class="em">—</div>暂无历史</div>';return}l.innerHTML=h.map(t=>`<div class="hist-item"><span class="hf">${esc(t.filename||t.url)}</span><span class="hs ${t.status==='completed'?'ok':'err'}">${t.status==='completed'?'完成':'失败'}</span><span style="font-size:10px;color:var(--text3)">${fmt(t.total_size)}</span><button class="btn btn-ghost btn-icon" onclick="openFolder('${escA(t.save_path||'')}')">📂</button></div>`).join('')}catch(e){}}
+async function clearHistory(){await fetch(API+'/api/history',{method:'DELETE'});loadHistory();toast('已清空','ok')}
+
+function toTray(){if(window.pywebview&&window.pywebview.api&&window.pywebview.api.minimize_to_tray){window.pywebview.api.minimize_to_tray()}}
+
+async function loadMotrix(){
+  try{
+    const r=await fetch(API+'/api/motrix');const m=await r.json();const body=document.getElementById('motrix-body');
+    let html='';
+    if(m.installed){
+      html+=`<div class="set-row"><div><div class="set-lbl">Motrix Next 已安装</div><div class="set-sub">${m.exe_path}</div></div></div>`;
+      if(m.has_engine){html+=`<div class="set-row"><div><div class="set-lbl">aria2-next 引擎可用</div><div class="set-sub">已优先使用（修复版 fork）</div></div><span style="color:var(--ok);font-size:12px">✓ 已启用</span></div>`}
+      html+=`<div class="set-row"><div><div class="set-lbl">启动 Motrix Next</div><div class="set-sub">打开完整下载管理器界面</div></div><button class="btn btn-primary btn-sm" onclick="launchMotrix()">启动</button></div>`;
+    }else{
+      html+=`<div class="set-row"><div><div class="set-lbl">Motrix Next 未安装</div><div class="set-sub">安装后可获得更强大的 aria2-next 引擎和完整 UI</div></div><div style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="downloadMotrix()">应用内下载安装</button><button class="btn btn-sm" onclick="window.open('${m.download_url}')">手动下载</button></div></div>`;
+    }
+    html+=`<div class="set-row"><div><div class="set-lbl">Chrome 扩展</div><div class="set-sub">拦截浏览器下载到 Motrix Next</div></div><button class="btn btn-sm" onclick="window.open('${m.chrome_ext}')">安装扩展</button></div>`;
+    html+=`<div class="set-row"><div><div class="set-lbl">Firefox 扩展</div><div class="set-sub">拦截浏览器下载到 Motrix Next</div></div><button class="btn btn-sm" onclick="window.open('${m.firefox_ext}')">安装扩展</button></div>`;
+    body.innerHTML=html;
+  }catch(e){document.getElementById('motrix-body').innerHTML='<div style="padding:20px;color:var(--danger)">加载失败</div>'}
+}
+async function launchMotrix(){try{await fetch(API+'/api/motrix/launch',{method:'POST'});toast('已启动 Motrix Next','ok')}catch(e){toast('启动失败','err')}}
+async function downloadMotrix(){try{await fetch(API+'/api/motrix/download',{method:'POST'});toast('正在下载 Motrix Next 安装程序...','ok')}catch(e){toast('失败','err')}}
+
+// Engine list
+async function loadEngines(){
+  try{const r=await fetch(API+'/api/engines');const d=await r.json();const body=document.getElementById('engines-body');
+  body.innerHTML=d.engines.map(e=>`<div class="set-row"><div><div class="set-lbl">${e.installed?'🟢':'⚫'} ${e.name}</div><div class="set-sub">${e.installed?(e.version||'已安装 · 优先级:'+e.priority):'未检测到'} · ${e.supports.join(', ')}</div></div>${e.installed&&e.key==='idm'?`<button class="btn btn-primary btn-sm" onclick="dlWithEngine('idm','IDM')">IDM 下载</button>`:''}${e.installed&&e.key==='bitcomet'?`<button class="btn btn-sm" onclick="dlWithEngine('bitcomet','彗星')">彗星下载</button>`:''}${e.installed&&e.key==='curl'?`<button class="btn btn-sm" onclick="dlWithEngine('curl','cURL')">cURL 下载</button>`:''}</div>`).join('');
+  }catch(e){}
+}
+async function dlWithEngine(engine,name){
+  const url=prompt(`输入下载链接 (${name || engine}):`,'https://');if(!url)return;
+  try{await fetch(API+'/api/engines/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({engine,url,save_dir:cfg.save_dir||''})});toast('已提交到 '+engine,'ok')}catch(e){toast('失败','err')}
+}
+
+// 秒传 JSON
+async function parseMiaochuan(){
+  const text=document.getElementById('mc-input').value.trim();if(!text)return;
+  try{const r=await fetch(API+'/api/miaochuan/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});const d=await r.json();const c=document.getElementById('mc-result');
+  if(d.error){c.innerHTML=`<span style="color:var(--danger)">${esc(d.error)}</span>`;return}
+  c.innerHTML=`<div style="color:var(--accent);margin-bottom:6px">✓ ${d.total_files} 个文件 · ${d.formatted_total_size}</div>${d.files.map(f=>`<div class="hist-item"><span class="hf">${esc(f.filename)}</span><span>${f.formatted_size}</span><span style="font-size:10px;color:var(--text3);margin-left:8px">etag:${(f.etag||'').substring(0,12)}</span></div>`).join('')}`;
+  }catch(e){toast('解析失败','err')}
+}
+
+// 做种
+let _seedFilePath='';
+async function pickSeedFile(){
+  if(window.pywebview&&window.pywebview.api&&window.pywebview.api.pick_file){
+    try{const p=await window.pywebview.api.pick_file();if(p){_seedFilePath=p;document.getElementById('seed-file-hint').textContent=p;document.getElementById('seed-trackers-row').style.display='';document.getElementById('seed-actions-row').style.display='';}}catch(e){toast('选择失败','err')}
+  }else{const p=prompt('输入文件路径:');if(p){_seedFilePath=p;document.getElementById('seed-file-hint').textContent=p;document.getElementById('seed-trackers-row').style.display=''}}
+}
+async function createTorrent(){
+  if(!_seedFilePath)return toast('请先选择文件','err');
+  const trackers=(document.getElementById('seed-trackers').value||'').split(/[\n\r]+/).filter(l=>l.trim());
+  const c=document.getElementById('seed-result');c.innerHTML='<span style="color:var(--accent)">正在创建种子...</span>';
+  try{
+    const r=await fetch(API+'/api/torrent/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({file_path:_seedFilePath,trackers:trackers.length?trackers:undefined})});
+    const d=await r.json();
+    if(d.error){c.innerHTML=`<span style="color:var(--danger)">${esc(d.error)}</span>`;return}
+    c.innerHTML=`<div style="margin-top:8px"><div style="color:var(--ok);margin-bottom:6px">✓ 种子已创建</div><div class="hist-item"><span class="hf">${esc(d.file_name)}</span><span>${fmt(d.file_size)} · ${d.piece_count} pieces</span></div><div style="margin:8px 0;font-size:11px;color:var(--text2)">磁力链接:</div><div style="background:var(--input);border:1px solid var(--line);border-radius:6px;padding:10px 14px;font-size:11px;font-family:monospace;word-break:break-all;color:var(--text);margin-bottom:8px;cursor:pointer" onclick="copyMagnet(this)" title="点击复制">${esc(d.magnet)}</div><div style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="startSeeding('${escA(d.torrent_path)}','${escA(d.file_path||_seedFilePath)}')">开始做种</button><button class="btn btn-sm" onclick="copyMagnetText('${escA(d.magnet)}')">复制磁力链接</button></div></div>`;
+  }catch(e){c.innerHTML='<span style="color:var(--danger)">创建失败</span>'}
+}
+function copyMagnet(el){const t=el.textContent||'';navigator.clipboard.writeText(t).then(()=>toast('已复制','ok')).catch(()=>toast('复制失败','err'))}
+function copyMagnetText(t){navigator.clipboard.writeText(t).then(()=>toast('已复制','ok')).catch(()=>toast('复制失败','err'))}
+async function startSeeding(tp,fp){
+  try{const r=await fetch(API+'/api/torrent/seed',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({torrent_path:tp,file_path:fp})});const d=await r.json();if(d.error)return toast(d.error,'err');toast('已开始做种','ok');loadSeeding()}catch(e){toast('做种失败','err')}
+}
+async function loadSeeding(){
+  try{const r=await fetch(API+'/api/torrent/seeding');const d=await r.json();const l=document.getElementById('seeding-list');if(!d.seeding.length){l.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3)">暂无做种任务</div>';return}
+  l.innerHTML=d.seeding.map(s=>`<div class="set-row"><div><div class="set-lbl">${esc(s.torrent_path.split('/').pop()||s.key)}</div><div class="set-sub">${esc(s.file_path)}</div></div><button class="btn btn-sm" onclick="stopSeeding('${escA(s.key)}')">停止</button></div>`).join('')}catch(e){}
+}
+async function stopSeeding(k){await fetch(API+'/api/torrent/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:k})});toast('已停止','ok');loadSeeding()}
+
+function showClipboardPopup(link){const old=document.querySelector('.clipboard-popup');if(old)old.remove();const div=document.createElement('div');div.className='clipboard-popup';div.innerHTML=`<div class="ct">📋 检测到下载链接</div><div class="cl">${esc(link.substring(0,100))}</div><div style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="dl('${escA(link)}','');this.closest('.clipboard-popup').remove()">下载</button><button class="btn btn-ghost btn-sm" onclick="this.closest('.clipboard-popup').remove()">忽略</button></div>`;document.body.appendChild(div);setTimeout(()=>div.remove(),15000)}
+
+// Drag & drop
+document.addEventListener('dragover',e=>{e.preventDefault();document.getElementById('drop-zone').classList.add('dragover')});
+document.addEventListener('dragleave',e=>{document.getElementById('drop-zone').classList.remove('dragover')});
+document.addEventListener('drop',e=>{e.preventDefault();document.getElementById('drop-zone').classList.remove('dragover');const files=e.dataTransfer.files;if(files.length){const f=files[0];if(f.name.endsWith('.torrent')){dl('file://'+f.path||f.name,f.name)}else{document.getElementById('link-input').value=f.name;parse()}}});
+
+function clr(){document.getElementById('link-input').value='';document.getElementById('parse-list').innerHTML=''}
+function fmt(b){if(!b||b<0)return'—';if(b===0)return'0 B';const u=['B','KB','MB','GB','TB'];const i=Math.floor(Math.log(b)/Math.log(1024));return(b/Math.pow(1024,i)).toFixed(1)+' '+u[i]}
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function escA(s){return(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function toast(m,t){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+(t||'')+' show';clearTimeout(e._x);e._x=setTimeout(()=>e.className='toast',2000)}
+document.getElementById('link-input').addEventListener('paste',()=>{setTimeout(()=>{const v=document.getElementById('link-input').value.trim();if(v.includes('\n')||v.length>60)parse()},200)});
+init();
+</script>
+</body>
+</html>

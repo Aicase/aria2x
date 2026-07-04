@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.spec
+env/
+venv/
+
+# App binaries - released via GitHub Releases, not committed
+Aria2X.exe
+Aria2X_Setup.exe
+
+# aria2c - download manually or via script
+assets/aria2c.exe
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+temp/
